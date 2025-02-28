@@ -1,0 +1,85 @@
+I am trying to develop an idea for an application. The application is to be used to create a schematic designs of cabinet layouts including their internal parts (shelves, drawers, hanging rods, and other accessories) I am trying to get away from a standard cad mentality. The user should be able to simply drag components where they want them without needing to understand concepts like snapping or grouping or any drawing. To do this I'm thinking about a constraint model that determines whether components can be freely positioned and sized or whether they are constrained in one or more dimensions by the cabinet that they are part of. So for instance the shell of the cupboard is not constrained and it can be positioned and sized freely. A shelf in the cupboard is constrained by the inner width of the cupboard and the user should only have to drag it to the cupboard and set it's vertical position. A second kind of constraint is when something needs to be attached to the cupboard. In this case one side of the component is constrained to touch the cupboard but it's vertical position and possibly it's width may be set by the user.
+
+Core Entity Types
+
+Container Elements (Cabinets, Compartments)
+Contained Elements (Shelves, Drawers, Hanging Rods, Accessories)
+Attachment Elements (Handles, Brackets, External Components)
+
+Component Properties
+For each component, you'll need:
+
+Dimensional Properties:
+
+Width, Height, Depth
+Position (X, Y, Z coordinates)
+Orientation
+
+
+Constraint Properties:
+
+constraintType: None, Contained, Attached
+constrainedDimensions: Array of dimensions that are constrained (X, Y, Z, Width, Height, Depth)
+constrainedBy: Reference to parent component imposing constraints
+offsetFromParent: For attached elements, defines mounting position
+
+
+Functional Properties:
+
+Maximum load capacity (for shelves)
+Extension capabilities (for drawers)
+Material thickness
+
+
+
+Constraint Behaviors
+For Container Elements (Cabinets):
+
+Freely positionable and resizable
+Defines a boundary that contained elements must respect
+Has internal dimensions (accounting for material thickness)
+
+For Contained Elements (Shelves, Drawers):
+
+Width automatically matches internal cabinet width
+Depth can be cabinet depth or user-defined (for partial depth shelves)
+Vertical position (Y) is user-defined by dragging
+Cannot exceed container boundaries
+
+For Attachment Elements (Handles, etc.):
+
+One face must be in contact with the parent element
+Position along the contact face is user-defined
+Orientation is determined by the face they're attached to
+
+Interaction Model
+
+Drag to Place:
+
+User drags component from a palette into the design space
+System identifies potential parent containers
+When hovering over a valid container, show preview with automatic constraints applied
+
+
+Drag to Position:
+
+Allow dragging only along unconstrained dimensions
+For contained elements, only vertical positioning would be allowed
+Visual feedback shows locked dimensions
+
+
+Resize Interactions:
+
+Handle points only appear on unconstrained dimensions
+Constrained dimensions are automatically calculated and updated
+
+
+
+Implementation Example
+When a user drags a shelf to a cabinet:
+
+The system detects the shelf is inside the cabinet's boundaries
+The shelf width is automatically set to match the cabinet's internal width
+Only a vertical position handle is shown
+The shelf maintains its position relative to the cabinet if the cabinet is moved
+
