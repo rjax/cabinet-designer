@@ -1,7 +1,7 @@
 import React, { useRef, useState } from 'react';
 import { useStore } from '../store';
 
-function ComponentRenderer({ component, isSelected, onClick, scale }) {
+function ComponentRenderer({ component, isSelected, onClick, scale, theme }) {
   const elementRef = useRef();
   const { updateComponent } = useStore();
   const [isDragging, setIsDragging] = useState(false);
@@ -62,6 +62,7 @@ function ComponentRenderer({ component, isSelected, onClick, scale }) {
   
   // Get component style based on type and selection state
   const getComponentStyle = () => {
+    // Base style without border (moved to component-specific styling)
     const baseStyle = {
       position: 'absolute',
       left: `${component.position.x}px`,
@@ -69,9 +70,25 @@ function ComponentRenderer({ component, isSelected, onClick, scale }) {
       width: `${component.dimensions.width}px`,
       height: `${component.dimensions.height}px`,
       backgroundColor: component.color,
-      border: isSelected ? '2px dashed #3b82f6' : '1px solid #666',
       cursor: isSelected ? 'move' : 'pointer',
       zIndex: isSelected ? 10 : 1
+    };
+    
+    // Get border style based on selection state
+    const getBorderStyle = () => {
+      if (isSelected) {
+        return {
+          borderWidth: '2px',
+          borderStyle: 'dashed',
+          borderColor: theme.name === 'light' ? '#3b82f6' : '#60a5fa'
+        };
+      } else {
+        return {
+          borderWidth: '1px',
+          borderStyle: 'solid',
+          borderColor: theme.name === 'light' ? '#666' : '#999'
+        };
+      }
     };
     
     // Add component-specific styling
@@ -79,35 +96,51 @@ function ComponentRenderer({ component, isSelected, onClick, scale }) {
       case 'cabinet':
         return {
           ...baseStyle,
-          boxShadow: '0 4px 6px rgba(0, 0, 0, 0.1)'
+          ...getBorderStyle(),
+          boxShadow: theme.name === 'light' ? '0 4px 6px rgba(0, 0, 0, 0.1)' : '0 4px 6px rgba(0, 0, 0, 0.3)',
+          opacity: component.opacity !== undefined ? component.opacity : 1
         };
       case 'shelf':
         return {
           ...baseStyle,
-          height: `${component.dimensions.height}px`,
-          backgroundColor: component.color
+          ...getBorderStyle(),
+          height: `${component.dimensions.height}px`
         };
       case 'drawer':
+        const borderStyle = getBorderStyle();
         return {
           ...baseStyle,
-          borderTop: '1px solid #999',
-          borderBottom: '1px solid #999'
+          borderLeftWidth: borderStyle.borderWidth,
+          borderLeftStyle: borderStyle.borderStyle,
+          borderLeftColor: borderStyle.borderColor,
+          borderRightWidth: borderStyle.borderWidth,
+          borderRightStyle: borderStyle.borderStyle,
+          borderRightColor: borderStyle.borderColor,
+          borderTopWidth: '1px',
+          borderTopStyle: 'solid',
+          borderTopColor: theme.name === 'light' ? '#999' : '#ccc',
+          borderBottomWidth: '1px',
+          borderBottomStyle: 'solid',
+          borderBottomColor: theme.name === 'light' ? '#999' : '#ccc'
         };
       case 'hangingRod':
         return {
           ...baseStyle,
+          ...getBorderStyle(),
           height: `${component.dimensions.height}px`,
-          backgroundColor: component.color,
           borderRadius: '10px'
         };
       case 'handle':
         return {
           ...baseStyle,
-          backgroundColor: component.color,
+          ...getBorderStyle(),
           borderRadius: '4px'
         };
       default:
-        return baseStyle;
+        return {
+          ...baseStyle,
+          ...getBorderStyle()
+        };
     }
   };
   
@@ -117,13 +150,14 @@ function ComponentRenderer({ component, isSelected, onClick, scale }) {
     
     const handles = [];
     const constrainedDims = component.constrainedDimensions || [];
+    const handleColor = theme.name === 'light' ? 'bg-blue-500' : 'bg-blue-400';
     
     // Right handle (width)
     if (!constrainedDims.includes('width')) {
       handles.push(
         <div
           key="right"
-          className="absolute w-3 h-3 bg-blue-500 rounded-full cursor-ew-resize"
+          className={`absolute w-3 h-3 ${handleColor} rounded-full cursor-ew-resize`}
           style={{ right: '-6px', top: '50%', transform: 'translateY(-50%)' }}
           onMouseDown={(e) => handleResizeStart(e, 'width')}
         />
@@ -135,7 +169,7 @@ function ComponentRenderer({ component, isSelected, onClick, scale }) {
       handles.push(
         <div
           key="bottom"
-          className="absolute w-3 h-3 bg-blue-500 rounded-full cursor-ns-resize"
+          className={`absolute w-3 h-3 ${handleColor} rounded-full cursor-ns-resize`}
           style={{ bottom: '-6px', left: '50%', transform: 'translateX(-50%)' }}
           onMouseDown={(e) => handleResizeStart(e, 'height')}
         />
@@ -147,7 +181,7 @@ function ComponentRenderer({ component, isSelected, onClick, scale }) {
       handles.push(
         <div
           key="bottom-right"
-          className="absolute w-3 h-3 bg-blue-500 rounded-full cursor-nwse-resize"
+          className={`absolute w-3 h-3 ${handleColor} rounded-full cursor-nwse-resize`}
           style={{ bottom: '-6px', right: '-6px' }}
           onMouseDown={(e) => handleResizeStart(e, 'both')}
         />
@@ -213,9 +247,12 @@ function ComponentRenderer({ component, isSelected, onClick, scale }) {
   
   // Render component label
   const renderLabel = () => {
+    const labelBg = theme.name === 'light' ? 'bg-white bg-opacity-75' : 'bg-gray-800 bg-opacity-75';
+    const labelText = theme.name === 'light' ? 'text-gray-800' : 'text-gray-200';
+    
     return (
       <div 
-        className="absolute top-0 left-0 bg-white bg-opacity-75 px-1 text-xs"
+        className={`absolute top-0 left-0 ${labelBg} px-1 text-xs ${labelText}`}
         style={{ pointerEvents: 'none' }}
       >
         {component.type}

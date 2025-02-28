@@ -5,8 +5,27 @@ import ComponentRenderer from './ComponentRenderer';
 
 function DesignCanvas({ className }) {
   const canvasRef = useRef();
+  const containerRef = useRef();
   const [scale, setScale] = useState(1);
-  const { components, addComponent, selectComponent, selectedComponentId } = useStore();
+  const { components, addComponent, selectComponent, selectedComponentId, theme } = useStore();
+  
+  // Auto-adjust scale to fit 3m width in viewport
+  useEffect(() => {
+    const calculateInitialScale = () => {
+      if (containerRef.current) {
+        const containerWidth = containerRef.current.clientWidth;
+        // Calculate scale to fit 3000px (3m) in the available width
+        const newScale = containerWidth / 3000;
+        setScale(newScale);
+      }
+    };
+    
+    calculateInitialScale();
+    
+    // Recalculate on window resize
+    window.addEventListener('resize', calculateInitialScale);
+    return () => window.removeEventListener('resize', calculateInitialScale);
+  }, []);
   
   const [{ isOver }, drop] = useDrop(() => ({
     accept: 'component',
@@ -14,7 +33,8 @@ function DesignCanvas({ className }) {
       const offset = monitor.getClientOffset();
       const canvasRect = canvasRef.current.getBoundingClientRect();
       
-      // Calculate position relative to canvas
+      // Calculate drop position relative to the scalable canvas
+      // This gives us the exact position where the mouse is in the canvas coordinate system
       const position = {
         x: (offset.x - canvasRect.left) / scale,
         y: (offset.y - canvasRect.top) / scale,
@@ -42,38 +62,82 @@ function DesignCanvas({ className }) {
     setScale(prevScale => Math.max(0.5, Math.min(2, prevScale + delta)));
   };
   
+  // Helper function to get the component info for status bar
+  const getSelectedComponentInfo = () => {
+    const selectedComponent = components.find(c => c.id === selectedComponentId);
+    if (!selectedComponent) return null;
+    
+    // Check if it's a cabinet
+    if (selectedComponent.type === 'cabinet') {
+      return {
+        type: 'cabinet',
+        label: 'Cabinet selected - Drag components to add inside'
+      };
+    }
+    
+    return {
+      type: selectedComponent.type,
+      label: `${selectedComponent.type.charAt(0).toUpperCase() + selectedComponent.type.slice(1)} selected`
+    };
+  };
+  
+  const selectedComponentInfo = getSelectedComponentInfo();
+  
   return (
-    <div className={`${className} relative`}>
-      <div className="absolute top-2 right-2 bg-white rounded shadow p-2 z-10">
+    <div ref={containerRef} className={`${className} relative`}>
+      {/* Status bar showing selected component info */}
+      {selectedComponentInfo && (
+        <div className={`absolute top-2 left-2 ${theme.componentBg} rounded shadow p-2 z-10`}>
+          <span className={`${theme.text} text-sm flex items-center`}>
+            {selectedComponentInfo.type === 'cabinet' ? (
+              <>
+                <span className="text-lg mr-2">🗄️</span>
+                <span className={selectedComponentInfo.type === 'cabinet' ? 'font-semibold' : ''}>
+                  {selectedComponentInfo.label}
+                </span>
+              </>
+            ) : (
+              <>
+                <span className={`${theme.text}`}>
+                  {selectedComponentInfo.label}
+                </span>
+              </>
+            )}
+          </span>
+        </div>
+      )}
+      
+      <div className={`absolute top-2 right-2 ${theme.componentBg} rounded shadow p-2 z-10`}>
         <button 
           onClick={() => setScale(prev => Math.min(prev + 0.1, 2))}
-          className="px-2 py-1 bg-gray-200 rounded mr-1"
+          className={`px-2 py-1 bg-gray-200 rounded mr-1 ${theme.name === 'dark' ? 'text-gray-800' : ''}`}
         >
           +
         </button>
         <button 
           onClick={() => setScale(prev => Math.max(prev - 0.1, 0.5))}
-          className="px-2 py-1 bg-gray-200 rounded"
+          className={`px-2 py-1 bg-gray-200 rounded ${theme.name === 'dark' ? 'text-gray-800' : ''}`}
         >
           -
         </button>
-        <span className="ml-2">{Math.round(scale * 100)}%</span>
+        <span className={`ml-2 ${theme.text}`}>{Math.round(scale * 100)}%</span>
       </div>
       
       <div 
         ref={connectRefs} 
-        className={`w-full h-full overflow-auto ${isOver ? 'bg-blue-100' : 'bg-gray-100'}`}
+        className={`w-full h-full overflow-auto ${isOver ? 'bg-blue-100' : theme.canvas}`}
         onWheel={handleZoom}
+        onClick={() => selectComponent(null)} // Deselect when clicking on empty area
       >
         <div 
           className="relative"
           style={{ 
-            width: '5000px', 
+            width: '3000px', 
             height: '5000px', 
             transform: `scale(${scale})`,
             transformOrigin: 'top left',
-            backgroundImage: 'linear-gradient(#ddd 1px, transparent 1px), linear-gradient(90deg, #ddd 1px, transparent 1px)',
-            backgroundSize: '20px 20px'
+            backgroundImage: `linear-gradient(${theme.canvasGrid} 1px, transparent 1px), linear-gradient(90deg, ${theme.canvasGrid} 1px, transparent 1px)`,
+            backgroundSize: '100px 100px' // 10cm grid
           }}
         >
           {components.map(component => (
@@ -83,6 +147,7 @@ function DesignCanvas({ className }) {
               isSelected={component.id === selectedComponentId}
               onClick={() => selectComponent(component.id)}
               scale={scale}
+              theme={theme}
             />
           ))}
         </div>
